@@ -27,7 +27,7 @@ def style_move(model_type = 0, picture_path = ''):
 
 
 if __name__ == '__main__':
-    file_path = 'picture3.png'
+    file_path = '../picture3.png'
     models = glob.glob('./models/*/*.t7')
     print(models)
     print("一共有%d种模型" % len(models))
