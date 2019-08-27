@@ -1,3 +1,30 @@
+import threading
+
+
+def handle(sid):
+    print("Thread %d run" % sid, threading.current_thread())
+
+
+i = 1
+# 方法一创建子线程
+thread = threading.Thread(target=handle, args=(i,))
+thread.start()
+
+
+# 方法二
+class MyThread(threading.Thread):
+    def __init__(self, sid):
+        threading.Thread.__init__(self)
+        self.sid = sid
+
+    def run(self):
+        handle(self.sid)
+
+
+i = 2
+my_thread = MyThread(i)
+my_thread.start()
+
 # 有返回值
 def sum(a, b, c=1):
     return a + b + 1;
