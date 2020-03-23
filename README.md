@@ -1,6 +1,8 @@
 # Python相关笔记
-    ①Requests模块
-    ②WordCloud词云
-    ③OpenCV模块
-    ④豆瓣数据
+这是一个标准的项目结构，打包安装可使用setuptools
+###    ①Requests模块
+###    ②WordCloud词云
+###    ③OpenCV模块
+###    ④风格迁移
+###    ⑤豆瓣数据
 
