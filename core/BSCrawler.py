@@ -13,19 +13,25 @@ def parse(pra):
     scorepersons = []  # 评分人数
     reviewList = []  # 短评
     categoryList = [] # 类别
+    image = [] # 图片
     # Unicode编码与ASCII编码的不兼容
     for i in ol.find_all('li'):
+        # 获取div标签class=pic代码
+        cover = i.find('div', attrs={'class': 'pic'}).find('img').get('src')
+        image.append(cover)
+
+        # 获取div标签class=hd代码
         detail = i.find('div', attrs={'class': 'hd'})
         movieNameList = detail.find_all('span')
         movieName = movieNameList[0].get_text()# 电影名字
         movieNameEn = ''
         movieNameOther = ''
-
         if len(movieNameList) > 1:
             movieNameEn = movieNameList[1].get_text()  # 电影英文名字
         if len(movieNameList) > 2:
             movieNameOther = movieNameList[2].get_text()  # 电影其他名字
 
+        # 获取div标签class=star代码
         scoreList = i.find('div', attrs={'class': 'star'}).find_all('span')
         scorenum = scoreList[1].get_text() #评分
         # 评价人数
@@ -48,7 +54,7 @@ def parse(pra):
         categoryList.append(category)
 
     page = soup.find('span', attrs={'class': 'next'}).find('a')  # 获取下一页
-    result = [name, nameEn, nameOther, score, scorepersons, reviewList, categoryList]
+    result = [name, nameEn, nameOther, score, scorepersons, reviewList, categoryList, image]
     if page:
         result.append(downUrl + page['href'])
     else:
@@ -65,12 +71,13 @@ if __name__ == '__main__':
     score_persons = []
     review = []
     category = []
+    image = []
     i = 1
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.80 Safari/537.36'
     }
 
-    while i < 25:
+    while i < 5:
         if (url == None):
             break
         html = requests.get(url, headers=headers).content
@@ -82,8 +89,9 @@ if __name__ == '__main__':
         score_persons = score_persons + result[4]
         review = review + result[5]
         category = category + result[6]
-        url = result[7]
+        image = result[7]
+        url = result[8]
         i = i + 1
 
-    for (i, e, o, s, sp, r, c) in zip(name, nameEn, nameOther, score, score_persons, review, category):
-        print(i, " ", e, " ", o, " ", s, " ", sp, " ", r, " ", c)
+    for (i, e, o, s, sp, r, c, m) in zip(name, nameEn, nameOther, score, score_persons, review, category, image):
+        print(i, " ", e, " ", o, " ", s, " ", sp, " ", r, " ", c, " ", m)
