@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-downUrl = 'http://movie.douban.com/top250/'
+downUrl = 'http://movie.douban.com/top250/' 
 
 def parse(pra):
     soup = BeautifulSoup(pra, 'html.parser')
