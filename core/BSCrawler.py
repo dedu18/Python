@@ -1,5 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
+import pymysql
+import time
 
 downUrl = 'http://movie.douban.com/top250/' 
 
@@ -26,11 +28,15 @@ def parse(pra):
         movieName = movieNameList[0].get_text()# 电影名字
         movieNameEn = ''
         movieNameOther = ''
-        if len(movieNameList) > 1:
-            movieNameEn = movieNameList[1].get_text()  # 电影英文名字
         if len(movieNameList) > 2:
+            movieNameEn = movieNameList[1].get_text()  # 电影英文名字
             movieNameOther = movieNameList[2].get_text()  # 电影其他名字
-
+        elif len(movieNameList) > 1:
+            movieNameEn = movieNameList[1].get_text()  # 电影英文名字
+            movieNameOther = '无'
+        else:
+            movieNameEn = '无'
+            movieNameOther = '无'
         # 获取div标签class=star代码
         scoreList = i.find('div', attrs={'class': 'star'}).find_all('span')
         scorenum = scoreList[1].get_text() #评分
@@ -61,6 +67,9 @@ def parse(pra):
         result.append(None)
     return result
 
+def format(str):
+    return str.strip().replace("\'", "\\'")
+
 if __name__ == '__main__':
 
     url = downUrl
@@ -77,7 +86,7 @@ if __name__ == '__main__':
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.80 Safari/537.36'
     }
 
-    while i < 5:
+    while i < 500:
         if (url == None):
             break
         html = requests.get(url, headers=headers).content
@@ -89,9 +98,29 @@ if __name__ == '__main__':
         score_persons = score_persons + result[4]
         review = review + result[5]
         category = category + result[6]
-        image = result[7]
+        image = image + result[7]
         url = result[8]
         i = i + 1
+        # time.sleep(2)
 
-    for (i, e, o, s, sp, r, c, m) in zip(name, nameEn, nameOther, score, score_persons, review, category, image):
-        print(i, " ", e, " ", o, " ", s, " ", sp, " ", r, " ", c, " ", m)
+    # 操作数据库
+    config = {
+        "host": "127.0.0.1",
+        "user": "root",
+        "password": "Aa123456",
+        "database": "db_film"
+    }
+    db = pymysql.connect(**config)
+    cursor = db.cursor()
+
+    sqltemplate1 = "INSERT INTO `db_film`.`t_film` (`cntitle`, `entitle`, `othertitle`, `genres_id`, `image`, `rating`, `quote`) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s');"
+    for index in range(len(name)):
+        data = category[index].strip().replace(' ', '').replace("\n", "").replace("\r", "").replace("\'", "\\'")
+        # print(name[index], "***", nameEn[index], "***", nameOther[index], "***", score[index], "***", score_persons[index], "***", review[index], "***", data, "***", image[index])
+        sql = sqltemplate1 % (format(name[index]), format(nameEn[index]), format(nameOther[index]), data, format(image[index]), format(score[index]), format(review[index]))
+        print(sql)
+        cursor.execute(sql)
+        db.commit()  # 提交数据
+
+    cursor.close()
+    db.close()
