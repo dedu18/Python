@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import pymysql
+import pika
+import json
 
 # 数据格式
 # <ol class="grid_view">
@@ -73,17 +75,16 @@ def parse(pra):
         div_star_spans = li.find('div', attrs={'class': 'star'}).find_all('span')
         movie_score = div_star_spans[1].get_text()  # 评分
         movie_score_number = div_star_spans[3].get_text()  # 评价人数
-        movie_review = li.find('span', attrs={'class': 'inq'}).get_text()  # 短评
+        movie_review = li.find('span', attrs={'class': 'inq'})  # 短评
         # 获取类别
         movie_category = li.find('div', attrs={'class': 'bd'}).find('p').get_text()
-        # category = str(category[category.rfind('/')+2 : len(str(category))].replace(' ', '').strip())
         # 组装结果
         result_name.append(movie_name)
         result_name_en.append(movie_name_en)
         result_name_other.append(movie_name_other)
         result_score.append(movie_score)
         result_score_number.append(movie_score_number)
-        if movie_review:  # 判断是否有短评
+        if movie_review is not None:  # 判断是否有短评
             result_review.append(movie_review.get_text())
         else:
             result_review.append('无')
@@ -100,8 +101,8 @@ def parse(pra):
     return result
 
 
-def format_comma(str):
-    return str.strip().replace("\'", "\\'")
+def format_comma(string):
+    return string.strip().replace("\'", "\\'")
 
 
 if __name__ == '__main__':
@@ -118,7 +119,7 @@ if __name__ == '__main__':
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.80 Safari/537.36'
     }
-    while i < 500:
+    while i < 2:
         if url is None:
             break
         html = requests.get(url, headers=headers).content
@@ -134,28 +135,51 @@ if __name__ == '__main__':
         url = parse_result[8]
         i = i + 1
 
-    # 操作数据库
-    config = {
-        "host": "127.0.0.1",
-        "user": "root",
-        "password": "Aa123456",
-        "database": "db_film"
-    }
-    db = pymysql.connect(**config)
-    cursor = db.cursor()
-    sqltemplate = "INSERT INTO `db_film`.`t_film` (`cntitle`, `entitle`, `othertitle`, `genres_id`, `image`, `rating`, `quote`) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s');"
+    # 操作MQ存储
+    credentials = pika.PlainCredentials('guest', 'guest')  # mq用户名和密码
+    # 虚拟队列需要指定参数 virtual_host，如果是默认的可以不填。
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='192.168.1.8', port=5672, virtual_host='/', credentials=credentials))
+    channel = connection.channel()
+    # 声明exchange，由exchange指定消息在哪个队列传递，如不存在，则创建。durable = True 代表exchange持久化存储，False 非持久化存储
+    channel.exchange_declare(exchange='ex_film', durable=True, exchange_type='direct')
     for index in range(len(name)):
         data = category[index].strip().replace(' ', '').replace("\n", "").replace("\r", "").replace("\'", "\\'")
-        sql = sqltemplate % (format_comma(name[index]),
-                             format_comma(name_en[index]),
-                             format_comma(name_other[index]),
-                             data,
-                             format_comma(image[index]),
-                             format_comma(score[index]),
-                             format_comma(review[index]))
-        print(sql)
-        cursor.execute(sql)
-        db.commit()
+        message = json.dumps({
+            'cntitle': format_comma(name[index]),
+            'entitle': format_comma(name_en[index]),
+            'othertitle': format_comma(name_other[index]),
+            'genres_id': data,
+            'image': format_comma(image[index]),
+            'rating': format_comma(score[index]),
+            'quote': format_comma(review[index])
+        }, ensure_ascii=False)
+        channel.basic_publish(exchange='ex_film', routing_key='routingkey_film', body=message)
+    connection.close()
 
-    cursor.close()
-    db.close()
+    # # 操作数据库存储
+    # config = {
+    #     "host": "127.0.0.1",
+    #     "user": "root",
+    #     "password": "Aa123456",
+    #     "database": "db_film"
+    # }
+    # db = pymysql.connect(**config)
+    # cursor = db.cursor()
+    # sqltemplate = "INSERT INTO `db_film`.`t_film` (`cntitle`, `entitle`, `othertitle`, `genres_id`, `image`, `rating`, `quote`) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s');"
+    # for index in range(len(name)):
+    #     data = category[index].strip().replace(' ', '').replace("\n", "").replace("\r", "").replace("\'", "\\'")
+    #     if "..." in data:
+    #         pass
+    #     sql = sqltemplate % (format_comma(name[index]),
+    #                          format_comma(name_en[index]),
+    #                          format_comma(name_other[index]),
+    #                          data,
+    #                          format_comma(image[index]),
+    #                          format_comma(score[index]),
+    #                          format_comma(review[index]))
+    #     print(sql)
+    #     cursor.execute(sql)
+    #     db.commit()
+    #
+    # cursor.close()
+    # db.close()
